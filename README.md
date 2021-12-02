@@ -1,2 +1,2 @@
-# VIP-Lunabotics-Software
-This is where the code for the VIP Lunabotics software team is stored
+# VIP Lunabotics Software code repository
+This will be the place code from the camera tracking system and the navigation system will be stored
