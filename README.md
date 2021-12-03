@@ -1,2 +1,2 @@
-# VIP Lunabotics Software code repository
-This will be the place code from the camera tracking system and the navigation system will be stored
+# MOSSE Camera Tracking
+This is where code for the camera tracking system is stored
