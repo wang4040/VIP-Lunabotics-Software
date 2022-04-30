@@ -585,87 +585,100 @@ def main():
     #set_aabb_buffer(buffer=1e-3)
     #set_separating_axis_collisions()
 
-    #seed = 0
-    #seed = time.time()
-    seed = args.seed
-    if seed is None:
-        seed = random.randint(0, 10**3-1)
-    print('Seed:', seed)
-    set_random_seed(seed=seed) # None: 2147483648 = 2**31
-    set_numpy_seed(seed=seed)
-    #print('Random seed:', get_random_seed(), random.random())
-    #print('Numpy seed:', get_numpy_seed(), np.random.random())
+    num_iter = 100
+    lengths = []
+    costs = []
+    runtimes = []
 
-    #########################
+    for i in range(num_iter):
+        #seed = 0
+        #seed = time.time()
+        seed = args.seed
+        if seed is None:
+            seed = random.randint(0, 10**3-1)
+        print('Seed:', seed)
+        set_random_seed(seed=seed) # None: 2147483648 = 2**31
+        set_numpy_seed(seed=seed)
+        #print('Random seed:', get_random_seed(), random.random())
+        #print('Numpy seed:', get_numpy_seed(), np.random.random())
 
-    robot, base_limits, goal_conf, obstacles = problem1(n_obstacles=args.num)
-    custom_limits = create_custom_base_limits(robot, base_limits)
-    base_joints = joints_from_names(robot, BASE_JOINTS)
+        #########################
 
-    draw_base_limits(base_limits)
-    # draw_pose(get_link_pose(robot, base_link), length=0.5)
-    start_conf = get_joint_positions(robot, base_joints)
-    for conf in [start_conf, goal_conf]:
-        draw_waypoint(conf)
+        robot, base_limits, goal_conf, obstacles = problem1(n_obstacles=args.num)
+        custom_limits = create_custom_base_limits(robot, base_limits)
+        base_joints = joints_from_names(robot, BASE_JOINTS)
 
-    #resolutions = None
-    #resolutions = np.array([0.05, 0.05, math.radians(10)])
-    plan_joints = base_joints[:2] if not args.orientation else base_joints
-    d = len(plan_joints)
-    holonomic = args.holonomic or (d != 3)
-    resolutions = 1.*DEFAULT_RESOLUTION*np.ones(d) # TODO: default resolutions, velocities, accelerations fns
-    #weights = np.reciprocal(resolutions)
-    weights = np.array([1, 1, 1e-3])[:d]
-    cost_fn = get_acceleration_fn(robot, plan_joints, max_velocities=MAX_VELOCITIES[:d],
-                                  max_accelerations=MAX_ACCELERATIONS[:d])
+        # draw_base_limits(base_limits)
+        # draw_pose(get_link_pose(robot, base_link), length=0.5)
+        start_conf = get_joint_positions(robot, base_joints)
+        #for conf in [start_conf, goal_conf]:
+        #    draw_waypoint(conf)
 
-    # TODO: check that taking shortest turning direction (reversible affecting?)
-    if args.cfree:
-        obstacles = []
-    # for obstacle in obstacles:
-    #     draw_aabb(get_aabb(obstacle)) # Updates automatically
-    #set_all_static() # Doesn't seem to affect
+        #resolutions = None
+        #resolutions = np.array([0.05, 0.05, math.radians(10)])
+        plan_joints = base_joints[:2] if not args.orientation else base_joints
+        d = len(plan_joints)
+        holonomic = args.holonomic or (d != 3)
+        resolutions = 1.*DEFAULT_RESOLUTION*np.ones(d) # TODO: default resolutions, velocities, accelerations fns
+        #weights = np.reciprocal(resolutions)
+        weights = np.array([1, 1, 1e-3])[:d]
+        cost_fn = get_acceleration_fn(robot, plan_joints, max_velocities=MAX_VELOCITIES[:d],
+                                    max_accelerations=MAX_ACCELERATIONS[:d])
 
-    #test_aabb(robot)
-    #test_caching(robot, obstacles)
-    #return
+        # TODO: check that taking shortest turning direction (reversible affecting?)
+        if args.cfree:
+            obstacles = []
+        # for obstacle in obstacles:
+        #     draw_aabb(get_aabb(obstacle)) # Updates automatically
+        #set_all_static() # Doesn't seem to affect
 
-    #########################
+        #test_aabb(robot)
+        #test_caching(robot, obstacles)
+        #return
 
-    # TODO: filter if straight-line path is feasible
-    saver = WorldSaver()
-    wait_for_duration(duration=1e-2)
-    start_time = time.time()
-    with LockRenderer(lock=args.lock):
-        with Profiler(field='cumtime', num=25): # tottime | cumtime | None
-            # TODO: draw the search tree
-            path = plan_base_joint_motion(
-                robot, plan_joints, goal_conf[:d],
-                holonomic=holonomic, reversible=args.reversible,
-                obstacles=obstacles, self_collisions=False, custom_limits=custom_limits,
-                use_aabb=True, cache=True, max_distance=MIN_PROXIMITY,
-                resolutions=resolutions, weights=weights, # TODO: use KDTrees
-                circular={2: UNBOUNDED_LIMITS if holonomic else CIRCULAR_LIMITS},
-                cost_fn=cost_fn,
-                algorithm=args.algorithm, verbose=True,
-                restarts=5, max_iterations=50,
-                smooth=None if holonomic else 100, smooth_time=1, # None | 100 | INF
-            )
-        saver.restore()
-    # TODO: draw ROADMAPS
-    #wait_for_duration(duration=1e-3)
+        #########################
 
-    #########################
+        # TODO: filter if straight-line path is feasible
+        saver = WorldSaver()
+        wait_for_duration(duration=1e-2)
+        start_time = time.time()
+        with LockRenderer(lock=args.lock):
+            with Profiler(field='cumtime', num=25): # tottime | cumtime | None
+                # TODO: draw the search tree
+                path = plan_base_joint_motion(
+                    robot, plan_joints, goal_conf[:d],
+                    holonomic=holonomic, reversible=args.reversible,
+                    obstacles=obstacles, self_collisions=False, custom_limits=custom_limits,
+                    use_aabb=True, cache=True, max_distance=MIN_PROXIMITY,
+                    resolutions=resolutions, weights=weights, # TODO: use KDTrees
+                    circular={2: UNBOUNDED_LIMITS if holonomic else CIRCULAR_LIMITS},
+                    cost_fn=cost_fn,
+                    algorithm=args.algorithm, verbose=True,
+                    restarts=5, max_iterations=50,
+                    smooth=None if holonomic else 100, smooth_time=1, # None | 100 | INF
+                )
+            saver.restore()
+        # TODO: draw ROADMAPS
+        #wait_for_duration(duration=1e-3)
 
-    solved = path is not None
-    length = INF if path is None else len(path)
-    cost = compute_cost(robot, base_joints, path, resolutions=resolutions[:len(plan_joints)])
-    print('Solved: {} | Length: {} | Cost: {:.3f} | Runtime: {:.3f} sec'.format(
-        solved, length, cost, elapsed_time(start_time)))
-    if path is None:
-        wait_if_gui()
-        disconnect()
-        return
+        #########################
+        cumtime = elapsed_time(start_time)
+        solved = path is not None
+        length = INF if path is None else len(path)
+        cost = compute_cost(robot, base_joints, path, resolutions=resolutions[:len(plan_joints)])
+        print('Solved: {} | Length: {} | Cost: {:.3f} | Runtime: {:.3f} sec'.format(
+            solved, length, cost, cumtime))
+        #if path is None:
+        #    wait_if_gui()
+        #    disconnect()
+        #    return
+        if path != None:
+            lengths.append(length)
+            costs.append(cost)
+            runtimes.append(cumtime)
+
+    print('Solved {} out of {} | Mean length: {:.3f} | Mean Cost: {:.3f} | Mean Runtime: {:.3f} sec'.format(
+        len(lengths), num_iter, sum(lengths)/len(lengths), sum(costs)/len(costs), sum(runtimes)/len(runtimes)))
 
     # for i, conf in enumerate(path):
     #   set_joint_positions(robot, plan_joints, conf)
