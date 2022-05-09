@@ -105,16 +105,20 @@ def retime_path(path, collision_fn=lambda q: False, smooth=False, **kwargs):
 
 ##################################################
 
-def problem1():
+def problem1(inseed):
     # TODO: randomize problems
+    rand = []
+    for i in range(8):
+        random.seed(inseed+i)
+        rand.append((random.random()*2-1) * 0.05) #centers random number to the range -1 to 1, then scales it to -0.05 to +0.05
     obstacles = [
-        create_box(center=(.35, .75), extents=(.25, .25)),
+        create_box(center=(.35+rand[0], .78+rand[1]), extents=(.25, .25)),
         #create_box(center=(.75, .35), extents=(.25, .25)),
-        create_box(center=(.75, .35), extents=(.22, .22)),
-        create_box(center=(.5, .5), extents=(.25, .25)),
+        create_box(center=(.77+rand[2], .35+rand[3]), extents=(.22, .22)),
+        create_box(center=(.5+rand[4], .5+rand[5]), extents=(.25, .25)),
         #create_box(center=(.5, .5), extents=(.22, .22)),
 
-        create_cylinder(center=(.25, .25), radius=.1),
+        create_cylinder(center=(.25+rand[6], .25+rand[7]), radius=.1),
     ]
 
     # TODO: alternate sampling from a mix of regions
@@ -201,129 +205,155 @@ def main(draw=True):
                         help='When enabled, smooths paths.')
     parser.add_argument('-t', '--time', default=1., type=float,
                         help='The maximum runtime.')
+    parser.add_argument('-i', '--iterations', default=1, type=int,
+                        help='The number of iterations')
     parser.add_argument('--seed', default=None, type=int,
                         help='The random seed to use.')
     args = parser.parse_args()
     print(args)
 
-    seed = args.seed
-    if seed is None:
-        #seed = random.randint(0, sys.maxsize)
-        seed = random.randint(0, 10**3-1)
-    print('Seed:', seed)
-    random.seed(seed)
-    np.random.seed(seed)
+    draw = False
+    num_iter = args.iterations
+    lengths = []
+    costs = []
+    runtimes = []
+    for iter in range(num_iter):
+        seed = args.seed
+        if seed is None:
+            #seed = random.randint(0, sys.maxsize)
+            seed = random.randint(0, 10**3-1)
+        print('Seed:', seed)
+        random.seed(seed)
+        np.random.seed(seed)
 
-    #########################
+        #########################
 
-    problem_fn = problem1 # problem1 | infeasible
-    start, goal, regions, obstacles = problem_fn()
-    #obstacles = []
-    environment = regions['env']
-    if isinstance(goal, str) and (goal in regions):
-        goal = get_box_center(regions[goal])
-    else:
-        goal = np.array([1., 1.])
+        problem_fn = problem1 # problem1 | infeasible
+        start, goal, regions, obstacles = problem_fn(seed)
+        #obstacles = []
+        environment = regions['env']
+        if isinstance(goal, str) and (goal in regions):
+            goal = get_box_center(regions[goal])
+        else:
+            goal = np.array([1., 1.])
 
-    title = args.algorithm
-    if args.smooth:
-        title += '+shortcut'
+        title = args.algorithm
+        if args.smooth:
+            title += '+shortcut'
 
-    viewer = None # TODO: can't use matplotlib at the same time
-    if draw:
-        viewer = draw_environment(obstacles, regions, title=title)
+        viewer = None # TODO: can't use matplotlib at the same time
+        if draw:
+            viewer = draw_environment(obstacles, regions, title=title)
 
-    #########################
+        #########################
 
-    #connected_test, roadmap = get_connected_test(obstacles)
-    weights = np.reciprocal(V_MAX)
-    distance_fn = get_distance_fn(weights=[1, 1]) # distance_fn
-    min_distance = distance_fn(start, goal)
-    print('Distance: {:.3f}'.format(min_distance))
+        #connected_test, roadmap = get_connected_test(obstacles)
+        weights = np.reciprocal(V_MAX)
+        distance_fn = get_distance_fn(weights=[1, 1]) # distance_fn
+        min_distance = distance_fn(start, goal)
+        print('Distance: {:.3f}'.format(min_distance))
 
-    # samples = list(islice(region_gen('env'), 100))
-    with profiler(field='tottime'): # cumtime | tottime
-        # TODO: cost bound & best cost
-        for _ in range(args.restarts+1):
-            start_time = time.time()
-            collision_fn, colliding, cfree = wrap_collision_fn(get_collision_fn(environment, obstacles))
-            sample_fn, samples = wrap_sample_fn(get_sample_fn(environment, obstacles=[], use_halton=True)) # obstacles
-            #extend_fn, roadmap = get_wrapped_extend_fn(environment, obstacles=obstacles)  # obstacles | []
+        # samples = list(islice(region_gen('env'), 100))
+        with profiler(field='tottime'): # cumtime | tottime
+            # TODO: cost bound & best cost
+            for _ in range(args.restarts+1):
+                start_time = time.time()
+                collision_fn, colliding, cfree = wrap_collision_fn(get_collision_fn(environment, obstacles))
+                sample_fn, samples = wrap_sample_fn(get_sample_fn(environment, obstacles=[], use_halton=True)) # obstacles
+                #extend_fn, roadmap = get_wrapped_extend_fn(environment, obstacles=obstacles)  # obstacles | []
 
-            circular = {}
-            #circular = {0: UNIT_LIMITS, 1: UNIT_LIMITS}
-            extend_fn, roadmap = get_extend_fn(circular=circular), []
+                circular = {}
+                #circular = {0: UNIT_LIMITS, 1: UNIT_LIMITS}
+                extend_fn, roadmap = get_extend_fn(circular=circular), []
 
-            # points = list(extend_fn(start, goal))
-            # print(points)
-            # add_points(viewer, points, color='blue', radius=2)
-            # input()
-            # return
+                # points = list(extend_fn(start, goal))
+                # print(points)
+                # add_points(viewer, points, color='blue', radius=2)
+                # input()
+                # return
 
-            # TODO: shortcutting with this function
-            #cost_fn = distance_fn
-            #cost_fn = get_cost_fn(distance_fn, constant=1e-2, coefficient=1.)
-            cost_fn = get_duration_fn(difference_fn=get_difference_fn(circular=circular), v_max=V_MAX, a_max=A_MAX)
-            path = solve(start, goal, distance_fn, sample_fn, extend_fn, collision_fn,
-                         cost_fn=cost_fn, weights=weights, circular=circular,
-                         max_time=args.time, max_iterations=INF, num_samples=100,
-                         success_cost=0 if args.anytime else INF,
-                         restarts=2, smooth=0, algorithm=args.algorithm, verbose=True)
-            #print(ROADMAPS)
+                # TODO: shortcutting with this function
+                #cost_fn = distance_fn
+                #cost_fn = get_cost_fn(distance_fn, constant=1e-2, coefficient=1.)
+                cost_fn = get_duration_fn(difference_fn=get_difference_fn(circular=circular), v_max=V_MAX, a_max=A_MAX)
+                path = solve(start, goal, distance_fn, sample_fn, extend_fn, collision_fn,
+                            cost_fn=cost_fn, weights=weights, circular=circular,
+                            max_time=args.time, max_iterations=INF, num_samples=100,
+                            success_cost=0 if args.anytime else INF,
+                            restarts=2, smooth=0, algorithm=args.algorithm, verbose=True)
+                #print(ROADMAPS)
 
-            #path = solve_lazy_prm(viewer, start, goal, sample_fn, extend_fn, collision_fn,
-            #                      num_samples=200, max_time=args.time, max_cost=1.25*min_distance)
+                #path = solve_lazy_prm(viewer, start, goal, sample_fn, extend_fn, collision_fn,
+                #                      num_samples=200, max_time=args.time, max_cost=1.25*min_distance)
 
-            paths = [] if path is None else [path]
-            #paths = random_restarts(rrt_connect, start, goal, distance_fn=distance_fn, sample_fn=sample_fn,
-            #                         extend_fn=extend_fn, collision_fn=collision_fn, restarts=INF,
-            #                         max_time=args.time, max_solutions=INF, smooth=100) #, smooth=1000, **kwargs)
+                paths = [] if path is None else [path]
+                #paths = random_restarts(rrt_connect, start, goal, distance_fn=distance_fn, sample_fn=sample_fn,
+                #                         extend_fn=extend_fn, collision_fn=collision_fn, restarts=INF,
+                #                         max_time=args.time, max_solutions=INF, smooth=100) #, smooth=1000, **kwargs)
 
-            # paths = exhaustively_select_portfolio(paths, k=2)
-            # print(score_portfolio(paths))
+                # paths = exhaustively_select_portfolio(paths, k=2)
+                # print(score_portfolio(paths))
 
-            #########################
+                #########################
 
-            if args.draw:
-                # roadmap = samples = cfree = []
-                add_roadmap(viewer, roadmap, color='black') # TODO: edges going backward?
-                add_points(viewer, samples, color='grey', radius=2)
-                add_points(viewer, colliding, color='red', radius=2)
-                add_points(viewer, cfree, color='blue', radius=2) # green
+                if args.draw:
+                    # roadmap = samples = cfree = []
+                    add_roadmap(viewer, roadmap, color='black') # TODO: edges going backward?
+                    add_points(viewer, samples, color='grey', radius=2)
+                    add_points(viewer, colliding, color='red', radius=2)
+                    add_points(viewer, cfree, color='blue', radius=2) # green
 
-            print('Solutions ({}): {} | Colliding: {} | CFree: {} | Time: {:.3f}'.format(
-                len(paths), [(len(path), round(compute_path_cost(path, cost_fn), 3)) for path in paths],
-                len(colliding), len(cfree), elapsed_time(start_time)))
-            for i, path in enumerate(paths):
-                cost = compute_path_cost(path, cost_fn)
-                print('{}) Length: {} | Cost: {:.3f} | Ratio: {:.3f}'.format(i, len(path), cost, cost/min_distance))
-                #path = path[:1] + path[-2:]
-                path = waypoints_from_path(path)
-                add_path(viewer, path, color='green')
+                cumtime = elapsed_time(start_time)
+                print('Solutions ({}): {} | Colliding: {} | CFree: {} | Time: {:.3f}'.format(
+                    len(paths), [(len(path), round(compute_path_cost(path, cost_fn), 3)) for path in paths],
+                    len(colliding), len(cfree), cumtime))
 
-                if True:
-                    #curve = interpolate_path(path) # , collision_fn=collision_fn)
-                    curve = retime_path(path, collision_fn=collision_fn, smooth=args.smooth,
-                                        max_time=args.time) # , smooth=True)
-                    if not draw:
-                        plot_curve(curve)
+                lensum = 0
+                costsum = 0
 
-                    times, path = distance_discretize_curve(curve)
-                    times = [np.linalg.norm(curve(t, nu=1), ord=INF) for t in times]
-                    #add_points(viewer, [curve(t) for t in curve.x])
-                    #add_path(viewer, path, color='red')
-                    add_timed_path(viewer, times, path) # TODO: add curve
+                for i, path in enumerate(paths):
+                    cost = compute_path_cost(path, cost_fn)
+                    print('{}) Length: {} | Cost: {:.3f} | Ratio: {:.3f}'.format(i, len(path), cost, cost/min_distance))
+                    costsum += cost
+                    lensum += len(path)
+                    #path = path[:1] + path[-2:]
+                    path = waypoints_from_path(path)
+                    add_path(viewer, path, color='green')
 
-            if False and args.smooth:
-                for path in paths:
-                    #extend_fn, roadmap = get_wrapped_extend_fn(environment, obstacles=obstacles)  # obstacles | []
-                    #cost_fn = distance_fn
-                    smoothed = smooth_path(path, extend_fn, collision_fn,
-                                           cost_fn=cost_fn, sample_fn=sample_fn,
-                                           max_iterations=INF, max_time=args.time,
-                                           converge_time=INF, verbose=True)
-                    print('Smoothed distance_fn: {:.3f}'.format(compute_path_cost(smoothed, distance_fn)))
-                    add_path(viewer, smoothed, color='red')
+                    if True:
+                        #curve = interpolate_path(path) # , collision_fn=collision_fn)
+                        curve = retime_path(path, collision_fn=collision_fn, smooth=args.smooth,
+                                            max_time=args.time) # , smooth=True)
+                        #if not draw:
+                            #plot_curve(curve)
+
+                        times, path = distance_discretize_curve(curve)
+                        times = [np.linalg.norm(curve(t, nu=1), ord=INF) for t in times]
+                        #add_points(viewer, [curve(t) for t in curve.x])
+                        #add_path(viewer, path, color='red')
+                        add_timed_path(viewer, times, path) # TODO: add curve
+
+                if len(paths) != 0:
+                    lenmean = lensum/len(paths)
+                    costmean = costsum/len(paths)
+                    lengths.append(lenmean)
+                    costs.append(costmean)
+                    runtimes.append(cumtime)
+
+                if False and args.smooth:
+                    for path in paths:
+                        #extend_fn, roadmap = get_wrapped_extend_fn(environment, obstacles=obstacles)  # obstacles | []
+                        #cost_fn = distance_fn
+                        smoothed = smooth_path(path, extend_fn, collision_fn,
+                                            cost_fn=cost_fn, sample_fn=sample_fn,
+                                            max_iterations=INF, max_time=args.time,
+                                            converge_time=INF, verbose=True)
+                        print('Smoothed distance_fn: {:.3f}'.format(compute_path_cost(smoothed, distance_fn)))
+                        add_path(viewer, smoothed, color='red')
+            
+    if len(lengths) != 0:
+        print('Solved {} out of {} trials | Mean length: {:.3f} | Mean Cost: {:.3f} | Mean Runtime: {:.3f} sec'.format(
+        len(lengths), num_iter, sum(lengths)/len(lengths), sum(costs)/len(costs), sum(runtimes)/len(runtimes)))
 
     user_input('Finish?')
 
