@@ -17,10 +17,10 @@ The rplidar branch contains code for setting up point-cloud map data from RPLida
 # Notes on how to run the 2D and 3D simulations:
 
 
-To run the 2D simulation: Go to the master branch, use command `python -m motion_planners.tkinter.run`. Use args '-a' to specify the specific algorithm to run ('prm', 'lazy_prm', 'lazy_prm_star', 'rrt', 'rrt_star', 'birrt', 'rrt_connect'. Use args '-i' to specify the number of iterations. To enable the graph, comment out the statement 'draw=False'  in the main() function in tkinter\run.py
+To run the 2D simulation: Go to the 2d-motion-planner branch, use command `python -m motion_planners.tkinter.run`. Use args '-a' to specify the specific algorithm to run ('prm', 'lazy_prm', 'lazy_prm_star', 'rrt', 'rrt_star', 'birrt', 'rrt_connect'. Use args '-i' to specify the number of iterations. To enable the graph, comment out the statement 'draw=False'  in the main() function in tkinter\run.py
 
 
-To run the 3D simulation: Go to the 2d-motion-planner branch, use command `python -m examples.test_turtlebot_motion`. Use args '-a' to specify the specific algorithm to run ('prm', 'lazy_prm', 'lazy_prm_star', 'rrt', 'rrt_star', 'birrt', 'rrt_connect'. Use args '-i' to specify the number of iterations. To disable the PyBullet GUI interface, uncomment the statement 'use_gui=False' in the connect() function in pybullet_tools\utils.py
+To run the 3D simulation: Go to the master branch, use command `python -m examples.test_turtlebot_motion`. Use args '-a' to specify the specific algorithm to run ('prm', 'lazy_prm', 'lazy_prm_star', 'rrt', 'rrt_star', 'birrt', 'rrt_connect'. Use args '-i' to specify the number of iterations. To disable the PyBullet GUI interface, uncomment the statement 'use_gui=False' in the connect() function in pybullet_tools\utils.py
 
 
 Jerry Wang
