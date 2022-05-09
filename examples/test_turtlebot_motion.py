@@ -580,12 +580,14 @@ def main():
                         help='')
     parser.add_argument('-v', '--viewer', action='store_false',
                         help='')
+    parser.add_argument('-i', '--iterations', default=1, type=int,
+                        help='The number of iterations')
     args = parser.parse_args()
     connect(use_gui=args.viewer)
     #set_aabb_buffer(buffer=1e-3)
     #set_separating_axis_collisions()
 
-    num_iter = 100
+    num_iter = args.iterations
     lengths = []
     costs = []
     runtimes = []
@@ -608,11 +610,11 @@ def main():
         custom_limits = create_custom_base_limits(robot, base_limits)
         base_joints = joints_from_names(robot, BASE_JOINTS)
 
-        # draw_base_limits(base_limits)
+        draw_base_limits(base_limits)
         # draw_pose(get_link_pose(robot, base_link), length=0.5)
         start_conf = get_joint_positions(robot, base_joints)
-        #for conf in [start_conf, goal_conf]:
-        #    draw_waypoint(conf)
+        for conf in [start_conf, goal_conf]:
+            draw_waypoint(conf)
 
         #resolutions = None
         #resolutions = np.array([0.05, 0.05, math.radians(10)])
@@ -668,10 +670,10 @@ def main():
         cost = compute_cost(robot, base_joints, path, resolutions=resolutions[:len(plan_joints)])
         print('Solved: {} | Length: {} | Cost: {:.3f} | Runtime: {:.3f} sec'.format(
             solved, length, cost, cumtime))
-        #if path is None:
-        #    wait_if_gui()
-        #    disconnect()
-        #    return
+        if path is None:
+            wait_if_gui()
+            disconnect()
+            return
         if path != None:
             lengths.append(length)
             costs.append(cost)
