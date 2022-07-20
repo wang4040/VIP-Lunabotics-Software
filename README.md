@@ -1,5 +1,5 @@
 # VIP Lunabotics Software code repository
-This is my Repository for all my code for VIP Lunabotics
+This is the repository for all my projects for VIP Lunabotics
 
 
 The master branch contains the 3D Pybullet Implementation of the sampling-based motion planning algorithms
